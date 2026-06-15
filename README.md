@@ -114,7 +114,6 @@ Tracks measurable security outcomes rather than simply counting vulnerabilities.
 
 ## 📐 Risk Methodology — The Business Case
 
-> **For judges with CISO or Director-level backgrounds:** This section explains why VulnSentinel produces business value that a standard alert pipeline cannot.
 
 ### The Problem with Standard CVSS
 
@@ -255,7 +254,7 @@ By focusing on risk reduction instead of alert volume, VulnSentinel enables secu
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/vulnsentinel.git
+git clone https://github.com/PranavS1604/vulnsentinel.git
 
 # 2. Install dependencies into Splunk's Python
 $SPLUNK_HOME/bin/splunk cmd python -m pip install requests python-dotenv
