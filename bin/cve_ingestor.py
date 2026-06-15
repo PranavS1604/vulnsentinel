@@ -7,6 +7,10 @@ import sqlite3
 import time
 import logging
 from dotenv import load_dotenv
+import urllib3
+
+# Suppress local self-signed SSL warnings in terminal
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # --- CRITICAL PATH SETTINGS ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +23,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Credentials
 SPLUNK_HEC_URL = os.environ.get("SPLUNK_HEC_URL")
 SPLUNK_HEC_TOKEN = os.environ.get("SPLUNK_HEC_TOKEN")
-HF_API_TOKEN = os.environ.get("HF_API_TOKEN") # Your Hugging Face or internal model token
+HF_API_TOKEN = os.environ.get("HF_API_TOKEN") 
 HF_MODEL_ENDPOINT = os.environ.get("HF_MODEL_ENDPOINT", "https://router.huggingface.co/v1/chat/completions")
 
 def init_db():
@@ -69,7 +73,6 @@ def query_foundation_sec_prediction(cve_id, description):
             result = response.json()
             content_text = result["choices"][0]["message"]["content"].strip()
             
-            # Clean up potential markdown code block backticks if the model ignores the instruction
             if content_text.startswith("```"):
                 content_text = content_text.split("```json")[-1].split("```")[0].strip()
                 
@@ -82,7 +85,6 @@ def query_foundation_sec_prediction(cve_id, description):
     except Exception as e:
         logging.warning(f"Foundation-Sec prediction failed for {cve_id}: {e}")
         
-    # Reliable deterministic fallback if the inference endpoint is busy
     return 8.5, "T1190", "Apply standard patch constraints."
 
 def fetch_and_enrich_cisa_kev():
@@ -94,25 +96,30 @@ def fetch_and_enrich_cisa_kev():
     
     try:
         logging.info("Polling live CISA KEV Feed...")
-        response = requests.get("[https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json](https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json)", timeout=15)
+        
+        url_segments = [
+            "https://",
+            "www.cisa.gov",
+            "/sites/default/files/feeds",
+            "/known_exploited_vulnerabilities.json"
+        ]
+        sanitized_url = "".join(url_segments)
+        
+        response = requests.get(sanitized_url, timeout=15)
         response.raise_for_status()
         vulnerabilities = response.json().get("vulnerabilities", [])
         
         new_events = 0
-        # Process the top 25 fresh items to avoid dashboard flooding
         for vuln in vulnerabilities[:25]:
             cve_id = vuln.get("cveID")
             description = vuln.get("shortDescription", "")
             payload_hash = hash_payload(cve_id, vuln.get("dateAdded"))
             
-            # State Management: Check if we have already ingested this exact update
             c.execute("SELECT 1 FROM processed_cves WHERE payload_hash=?", (payload_hash,))
             if c.fetchone():
                 continue
                 
             logging.info(f"AI-Reasoning starting for {cve_id}...")
-            
-            # Call local/remote Foundation-Sec model to predict CVSS and map context
             predicted_cvss, mitre_technique, remediation_strategy = query_foundation_sec_prediction(cve_id, description)
             
             event_payload = {
@@ -132,7 +139,8 @@ def fetch_and_enrich_cisa_kev():
             }
             
             try:
-                splunk_session.post(SPLUNK_HEC_URL, data=json.dumps(event_payload), timeout=5).raise_for_status()
+                # Bypassing SSL verification lets us communicate with local Splunk smoothly
+                splunk_session.post(SPLUNK_HEC_URL, data=json.dumps(event_payload), timeout=5, verify=False).raise_for_status()
                 c.execute("INSERT INTO processed_cves VALUES (?, ?, ?)", (payload_hash, cve_id, int(time.time())))
                 conn.commit()
                 new_events += 1
