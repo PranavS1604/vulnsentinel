@@ -1,0 +1,29 @@
+{
+  "mcp_version": "1.0.0",
+  "tools": [
+    {
+      "name": "splunk_vulnerability_discovery",
+      "description": "Queries Splunk indices for zero-day exposure mapping against internal IT assets.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "earliest_time": {"type": "string", "default": "-24h"}
+        }
+      }
+    },
+    {
+      "name": "execute_autonomous_remediation",
+      "description": "Triggers network isolation protocols and generates automated ITSM tickets for critical vulnerabilities.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "host": {"type": "string", "description": "Target hostname."},
+          "ip_address": {"type": "string", "description": "Target IPv4 address."},
+          "risk_score": {"type": "integer", "description": "Deterministic risk calculation."},
+          "mitre_technique": {"type": "string", "description": "Foundation-Sec mapped MITRE tactic."}
+        },
+        "required": ["host", "ip_address", "risk_score", "mitre_technique"]
+      }
+    }
+  ]
+}

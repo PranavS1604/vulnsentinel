@@ -1,0 +1,136 @@
+<dashboard version="1.1" theme="dark">
+  <label>VulnSentinel: Autonomous Security Agent</label>
+  <description>Agentic Vulnerability Discovery, Deterministic Risk Engine, &amp; Remediation Architecture</description>
+
+  <row>
+    <panel>
+      <title>CISO Executive Briefing (Auto-Generated)</title>
+      <single>
+        <search>
+          <query>index="main" sourcetype="vulnsentinel:cve" 
+| lookup asset_inventory vendor AS vendor_project OUTPUT host 
+| search host=* | stats count as cves dc(host) as assets 
+| eval summary="VulnSentinel has mapped " + cves + " active CISA KEV threats directly exposing " + assets + " critical internal assets. Autonomous remediation workflows have been queued."
+| fields summary</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="colorMode">none</option>
+        <option name="drilldown">none</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Estimated Enterprise Risk Reduction</title>
+      <single>
+        <search>
+          <query>index="main" sourcetype="vulnsentinel:cve"
+| lookup asset_inventory vendor AS vendor_project OUTPUT host, is_internet_facing, business_criticality, known_exploitation
+| search host=*
+| fillnull value="N/A" cve_id is_internet_facing business_criticality known_exploitation
+| eval cvss_score = coalesce(cvss_score, 7.5)
+| eval cvss_points = cvss_score * 5
+| eval exposure_points = if(is_internet_facing=="True", 20, 0)
+| eval criticality_points = case(business_criticality=="High", 20, business_criticality=="Medium", 10, 1==1, 0)
+| eval exploitation_points = if(known_exploitation=="True", 10, 0)
+| eval initial_risk = coalesce(cvss_points, 0) + coalesce(exposure_points, 0) + coalesce(criticality_points, 0) + coalesce(exploitation_points, 0)
+| lookup vulnsentinel:audit target_host AS host OUTPUT status as audit_status
+| eval mitigated_risk = if(like(audit_status, "SUCCESS%"), (coalesce(cvss_score, 7.5) * 5 * 0.4), initial_risk)
+| stats sum(initial_risk) as gross_risk, sum(mitigated_risk) as net_risk
+| eval reduction_pct = round(((gross_risk - net_risk) / gross_risk) * 100, 1)
+| fields reduction_pct</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="numberPrecision">0.0</option>
+        <option name="unit">%</option>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0xdc4e41","0xf1813f","0x53a051"]</option>
+        <option name="rangeValues">[40,70]</option>
+        <option name="underLabel">ATTACK SURFACE ELIMINATED</option>
+      </single>
+    </panel>
+    <panel>
+      <title>Autonomous Remediation Workflows</title>
+      <single>
+        <search>
+          <query>index="main" sourcetype="vulnsentinel:audit" action="execute_autonomous_remediation" status="SUCCESS*" | stats count</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="colorBy">value</option>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x006d9c","0x006d9c"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="underLabel">MCP TOOLS EXECUTED</option>
+      </single>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Agentic Security Operations Matrix (Powered by Foundation-Sec-1.1-8B)</title>
+      <table>
+        <search>
+          <query>index="main" sourcetype="vulnsentinel:cve"
+| lookup asset_inventory vendor AS vendor_project OUTPUT host, ip_address, is_internet_facing, business_criticality
+| search host=*
+| head 4
+| fillnull value="N/A" cve_id vulnerability_name vendor_project product host ip_address is_internet_facing business_criticality reference_url known_exploitation
+| eval cvss_score = coalesce(cvss_score, 7.5)
+| eval cvss_points = cvss_score * 5
+| eval exposure_points = if(is_internet_facing=="True", 20, 0)
+| eval criticality_points = case(business_criticality=="High", 20, business_criticality=="Medium", 10, 1==1, 0)
+| eval exploitation_points = if(known_exploitation=="True", 10, 0)
+| eval risk_score = coalesce(cvss_points, 0) + coalesce(exposure_points, 0) + coalesce(criticality_points, 0) + coalesce(exploitation_points, 0)
+| ai prompt="Classify this vulnerability: {cve_id} ({vulnerability_name}). Map it directly to one primary MITRE ATT&amp;CK Initial Access or Execution technique category (e.g., T1190 Exploit Public-Facing Application). Respond with ONLY the ID and Name, nothing else."
+| rename ai_result_1 as mitre_mapping
+| ai prompt="You are an expert security AI. We detected a new vulnerability: {cve_id} ({vulnerability_name}) affecting {vendor_project} {product}. Splunk asset mapping shows this software is running on our host '{host}' (IP: {ip_address}, Internet Facing: {is_internet_facing}, Criticality: {business_criticality}). Generate a strict JSON Action Plan containing exactly three keys: 'host', 'recommended_action', and 'urgency' (either URGENT, HIGH, or MEDIUM). Output ONLY valid JSON. Do not use markdown blocks."
+| eval ai_result_1=replace(ai_result_1, "```json\s*", "")
+| eval ai_result_1=replace(ai_result_1, "```\s*", "")
+| rex field=ai_result_1 "(?s)(?&lt;action_plan&gt;\{.*\})"
+| spath input=action_plan
+| eval reference_url=if(reference_url=="N/A", "https://nvd.nist.gov/vuln/detail/"+cve_id, reference_url)
+| table _time, cve_id, host, mitre_mapping, risk_score, recommended_action, urgency, reference_url
+| rename _time as "Detection Time", cve_id as "CVE ID", host as "Target Asset", mitre_mapping as "MITRE TTP", risk_score as "Risk Index", recommended_action as "Agent Remediation Plan", urgency as "Priority SLA", reference_url as "Threat Intel"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="drilldown">cell</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Priority SLA">
+          <colorPalette type="map">{"URGENT":0xDC4E41,"HIGH":0xF1813F,"MEDIUM":0xF8BE34}</colorPalette>
+        </format>
+        <format type="color" field="Risk Index">
+          <colorPalette type="minMidMax" maxColor="0xDC4E41" midColor="0xF1813F" minColor="0xF8BE34"></colorPalette>
+        </format>
+      </table>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Active Threat Exposure Timeline</title>
+      <chart>
+        <search>
+          <query>index="main" sourcetype="vulnsentinel:cve"
+| lookup asset_inventory vendor AS vendor_project OUTPUT host, is_internet_facing, business_criticality, known_exploitation
+| search host=*
+| eval cvss_score = coalesce(cvss_score, 7.5)
+| eval cvss_points = cvss_score * 5
+| eval exposure_points = if(is_internet_facing=="True", 20, 0)
+| eval criticality_points = case(business_criticality=="High", 20, business_criticality=="Medium", 10, 1==1, 0)
+| eval exploitation_points = if(known_exploitation=="True", 10, 0)
+| eval risk_score = coalesce(cvss_points, 0) + coalesce(exposure_points, 0) + coalesce(criticality_points, 0) + coalesce(exploitation_points, 0)
+| timechart span=1h max(risk_score) as "Peak Asset Exposure Risk"</query>
+          <earliest>-24h@h</earliest>
+          <latest>now</latest>
+        </search>
+        <option name="charting.chart">area</option>
+        <option name="charting.axisTitleX.text">Time</option>
+        <option name="charting.axisTitleY.text">Risk Score</option>
+        <option name="charting.fieldColors">{"Peak Asset Exposure Risk": 0xdc4e41}</option>
+      </chart>
+    </panel>
+  </row>
+</dashboard>

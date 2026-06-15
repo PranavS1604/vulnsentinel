@@ -1,0 +1,5 @@
+host,ip_address,vendor,product,is_internet_facing,business_criticality
+web-prod-01,10.0.0.5,Cisco,Catalyst SD-WAN Manager,true,High
+db-core-02,10.0.0.8,Oracle,PeopleSoft Enterprise,false,Critical
+edge-switch-01,192.168.1.1,Arista,Extensible Operating System,true,High
+internal-wiki,10.0.0.15,Atlassian,Confluence,false,Low

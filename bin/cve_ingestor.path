@@ -1,0 +1,2 @@
+$SPLUNK_HOME\bin\python.exe
+$SPLUNK_HOME\etc\apps\VulnSentinel\bin\cve_ingestor.py

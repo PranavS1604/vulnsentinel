@@ -1,0 +1,13 @@
+[lookups/assets.csv]
+access = read : [ * ]
+export = system
+owner = pranav_16
+version = 10.4.0
+modtime = 1781433068.124942200
+
+[transforms/asset_inventory]
+access = read : [ * ]
+export = system
+owner = pranav_16
+version = 10.4.0
+modtime = 1781433221.614047500

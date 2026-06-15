@@ -1,0 +1,4 @@
+# Access rules for the VulnSentinel app
+[]
+access = read : [ * ], write : [ admin ]
+export = system
