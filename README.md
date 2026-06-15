@@ -27,7 +27,7 @@ All natively inside Splunk Enterprise.
 
 ## 🎥 Demo Video
 
-[![VulnSentinel Demo](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)
+[![VulnSentinel Demo](https://img.shields.io/badge/▶%20Watch%20Demo-YouTube-red?style=for-the-badge&logo=youtube)]([[https://www.youtube.com/watch?v=YOUR_VIDEO_ID](https://youtu.be/8_92IarsRSE)](https://youtu.be/8_92IarsRSE))
 
 > **Judges:** The full end-to-end workflow — from CISA KEV ingestion to autonomous containment and risk reduction dashboard — is demonstrated in the video above.
 
